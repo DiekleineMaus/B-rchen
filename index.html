@@ -15,9 +15,7 @@
     text-align: center;
   }
 
-  h1 {
-    margin-bottom: 5px;
-  }
+  h1 { margin-bottom: 5px; }
 
   #scoreboard {
     display: flex;
@@ -31,13 +29,12 @@
     font-weight: bold;
   }
 
-  /* Spielfeld */
   #game {
     display: grid;
-    grid-template-columns: repeat(8, 70px); /* 8 Karten je 70px breit */
-    gap: 4px; /* Abstand zwischen Karten */
-    justify-content: center; /* zentriert das Spielfeld */
-    max-width: calc(8 * 70px + 7 * 4px); /* Gesamtbreite = Karten + Lücken */
+    grid-template-columns: repeat(8, 70px);
+    gap: 4px;
+    justify-content: center;
+    max-width: calc(8 * 70px + 7 * 4px);
     margin: 0 auto;
   }
 
@@ -48,7 +45,6 @@
     border-radius: 6px;
     cursor: pointer;
     position: relative;
-    transition: transform 0.2s;
   }
 
   .card img {
@@ -60,123 +56,162 @@
     user-select: none;
   }
 
-  .card.flipped img {
-    display: block;
-  }
-
+  .card.flipped img { display: block; }
   .card.matched {
     background: #2ecc71;
     cursor: default;
   }
 
-  /* Tablets */
   @media (max-width: 900px) {
     #game {
       grid-template-columns: repeat(6, 60px);
       gap: 3px;
       max-width: calc(6 * 60px + 5 * 3px);
     }
-
-    .card {
-      width: 60px;
-      height: 60px;
-    }
+    .card { width: 60px; height: 60px; }
   }
 
-  /* Handys */
   @media (max-width: 500px) {
     #game {
       grid-template-columns: repeat(4, 55px);
       gap: 2px;
       max-width: calc(4 * 55px + 3 * 2px);
     }
-
-    .card {
-      width: 55px;
-      height: 55px;
-    }
+    .card { width: 55px; height: 55px; }
   }
 </style>
 </head>
 
 <body>
-  <h1>Memory</h1>
 
-  <div id="scoreboard">
-    <div>Spieler 1: <span id="p1">0</span></div>
-    <div>Spieler 2: <span id="p2">0</span></div>
-  </div>
+<h1>Memory</h1>
 
-  <div id="current">Am Zug: Spieler 1</div>
+<div id="scoreboard">
+  <div>Spieler 1: <span id="p1">0</span></div>
+  <div>Spieler 2: <span id="p2">0</span></div>
+</div>
 
-  <div id="game"></div>
+<div id="current"></div>
 
-  <script>
-    const imageCount = 24;
-    let cards = [];
-    let flipped = [];
-    let lock = false;
-    let currentPlayer = 1;
-    let scores = {1: 0, 2: 0};
+<div id="game"></div>
 
-    const game = document.getElementById("game");
-    const currentText = document.getElementById("current");
+<script>
+const imageCount = 24;
+let cards = [];
+let flipped = [];
+let lock = false;
+let currentPlayer = 1;
+let scores = {1: 0, 2: 0};
 
-    for (let i = 1; i <= imageCount; i++) {
-      cards.push(i, i);
+let gameMode = "two";
+let timer = 0;
+let timerInterval = null;
+
+const game = document.getElementById("game");
+const currentText = document.getElementById("current");
+
+// Spielmodus wählen
+if (confirm("OK = 1 Spieler (auf Zeit)\nAbbrechen = 2 Spieler")) {
+  gameMode = "one";
+  document.getElementById("scoreboard").style.display = "none";
+  currentText.textContent = "Zeit: 0 Sek.";
+  timerInterval = setInterval(() => {
+    timer++;
+    currentText.textContent = `Zeit: ${timer} Sek.`;
+  }, 1000);
+} else {
+  currentText.textContent = "Am Zug: Spieler 1";
+}
+
+// Karten vorbereiten
+for (let i = 1; i <= imageCount; i++) {
+  cards.push(i, i);
+}
+
+cards.sort(() => 0.5 - Math.random());
+
+// Karten erstellen
+cards.forEach(num => {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.dataset.value = num;
+
+  const img = document.createElement("img");
+  img.src = `images/${num}.jpg`;
+  img.alt = "Memory Karte";
+
+  card.appendChild(img);
+  card.addEventListener("click", () => flipCard(card));
+  game.appendChild(card);
+});
+
+function flipCard(card) {
+  if (lock || card.classList.contains("flipped") || card.classList.contains("matched")) return;
+
+  card.classList.add("flipped");
+  flipped.push(card);
+
+  if (flipped.length === 2) {
+    lock = true;
+    setTimeout(checkMatch, 800);
+  }
+}
+
+function checkMatch() {
+  const [a, b] = flipped;
+
+  if (a.dataset.value === b.dataset.value) {
+    a.classList.add("matched");
+    b.classList.add("matched");
+
+    if (gameMode === "two") {
+      scores[currentPlayer]++;
+      updateScores();
     }
+  } else {
+    a.classList.remove("flipped");
+    b.classList.remove("flipped");
 
-    cards.sort(() => 0.5 - Math.random());
-
-    cards.forEach(num => {
-      const card = document.createElement("div");
-      card.className = "card";
-      card.dataset.value = num;
-
-      const img = document.createElement("img");
-      img.src = `images/${String(num).padStart(2, "0")}.jpg`;
-      img.alt = "Memory Karte";
-
-      card.appendChild(img);
-      card.addEventListener("click", () => flipCard(card));
-      game.appendChild(card);
-    });
-
-    function flipCard(card) {
-      if (lock || card.classList.contains("flipped") || card.classList.contains("matched")) return;
-
-      card.classList.add("flipped");
-      flipped.push(card);
-
-      if (flipped.length === 2) {
-        lock = true;
-        setTimeout(checkMatch, 800);
-      }
+    if (gameMode === "two") {
+      currentPlayer = currentPlayer === 1 ? 2 : 1;
     }
+  }
 
-    function checkMatch() {
-      const [a, b] = flipped;
+  flipped = [];
+  lock = false;
 
-      if (a.dataset.value === b.dataset.value) {
-        a.classList.add("matched");
-        b.classList.add("matched");
-        scores[currentPlayer]++;
-        updateScores();
-      } else {
-        a.classList.remove("flipped");
-        b.classList.remove("flipped");
-        currentPlayer = currentPlayer === 1 ? 2 : 1;
-      }
+  if (gameMode === "two") {
+    currentText.textContent = `Am Zug: Spieler ${currentPlayer}`;
+  }
 
-      currentText.textContent = `Am Zug: Spieler ${currentPlayer}`;
-      flipped = [];
-      lock = false;
+  // Spielende prüfen
+  const matched = document.querySelectorAll(".matched").length;
+  if (matched === imageCount * 2) {
+    if (gameMode === "one") {
+      clearInterval(timerInterval);
+      setTimeout(() => {
+        alert(`Geschafft! 🎉\nZeit: ${timer} Sekunden`);
+      }, 300);
+    } else {
+      let winner =
+        scores[1] > scores[2]
+          ? "Spieler 1 gewinnt! 🎉"
+          : scores[2] > scores[1]
+          ? "Spieler 2 gewinnt! 🎉"
+          : "Unentschieden! 🤝";
+
+      setTimeout(() => {
+        alert(winner);
+      }, 300);
     }
+  }
+}
 
-    function updateScores() {
-      document.getElementById("p1").textContent = scores[1];
-      document.getElementById("p2").textContent = scores[2];
-    }
-  </script>
+function updateScores() {
+  document.getElementById("p1").textContent = scores[1];
+  document.getElementById("p2").textContent = scores[2];
+}
+</script>
+
 </body>
 </html>
